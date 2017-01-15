@@ -7,7 +7,8 @@ end
 def help_format(command_name, arguments, options)
   result = []
   arguments_text = arguments.map { |x| '[' + x[:name] + ']' }.join(' ')
-  result << "Usage: #{command_name} #{arguments_text}"
+  arguments_text.insert 0, " " if arguments_text != ""
+  result << "Usage: #{command_name}#{arguments_text}"
   options.each { |option| result << help_option_format(option) }
   result.join("\n")
 end
@@ -23,7 +24,32 @@ def create_option(short_name, long_name, description, parameter, block)
   option
 end
 
+module ParserMethods
+  def parse_arguments(runner, argv)
+    argument_index = 0
+    argv.each do |argument|
+      unless argument.start_with? '-'
+        @arguments[argument_index][:block].call(runner, argument)
+        argument_index += 1
+      end
+    end
+  end
+  
+  def parse_options(runner, argv)
+    option_index = 0
+    argv.each do |argument|
+      if argument.start_with? '--'
+        option_index += block_call_long_name(runner, argument, option_index)
+      elsif argument.start_with? '-'
+        option_index += block_call_short_name(runner, argument, option_index)
+      end
+    end
+  end
+end
+
 class CommandParser
+  include ParserMethods
+  
   def initialize(command_name)
     @command_name = command_name
     @arguments = []
@@ -58,8 +84,9 @@ class CommandParser
   end
   
   def block_call_long_name(runner, argument, option_index)
-    if @options[option_index][:long_name] == argument[2..-1]
-      @options[option_index][:block].call(runner, true)
+    item = @options.find { |x| x[:long_name] == argument[2..-1] }
+    if item
+      item[:block].call(runner, true)
       1
     else
       parts = argument[2..-1].split('=')
@@ -69,8 +96,9 @@ class CommandParser
   end
   
   def block_call_short_name(runner, argument, option_index)
-    if @options[option_index][:short_name] == argument[1..-1]
-      @options[option_index][:block].call(runner, true)
+    item = @options.find { |x| x[:short_name] == argument[1..-1] }
+    if item
+      item[:block].call(runner, true)
       1
     else
       name = argument[1]
@@ -80,16 +108,8 @@ class CommandParser
     end
   end
   
-  def parse(runner, argv, argument_index = 0, option_index = 0)
-    argv.each do |argument|
-      if argument.start_with? '--'
-        option_index += block_call_long_name(runner, argument, option_index)
-      elsif argument.start_with? '-'
-        option_index += block_call_short_name(runner, argument, option_index)
-      else
-        @arguments[argument_index][:block].call(runner, argument)
-        argument_index += 1
-      end
-    end
+  def parse(runner, argv)
+    parse_arguments(runner, argv)
+    parse_options(runner, argv)
   end
 end
