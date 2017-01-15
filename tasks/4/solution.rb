@@ -65,71 +65,47 @@ RSpec.describe 'Version' do
       end
     end
   end
-    
+  
+  describe '#<=>' do
+    it "can compare with #<=>" do
+      expect( Version.new('2.2.3.0.1') <=> Version.new('2.3.1') ).to eq -1
+      expect( Version.new('2.3.1.0.0') <=> Version.new('2.3.1') ).to eq 0
+      expect( Version.new('2.3.1.1.2') <=> Version.new('2.3.0') ).to eq 1
+    end
+  end
+  
   describe '#==' do
-    context 'when last parameters are zeros' do
-      it 'returns true' do
-        are_equal = Version.new('1.1.4.0.0') == Version.new('1.1.4')
-        expect(are_equal).to eq true
-      end
+    it "can compare with #==" do
+      expect( Version.new('2.3.1') == Version.new('2.3.1.0') ).to eq true
+      expect( Version.new('2.3.1') == Version.new('2.3.1.1.2') ).to eq false
     end
-    
-    context 'when there is zero inside the version parameters' do
-      it 'doesnt removes the zero' do
-        are_equal = Version.new('1.1.0.4') == Version.new('1.1.4')
-        expect(are_equal).to eq false
-      end
-    end
-    
-    context 'when it starts with zero parameter' do
-      it 'doesnt removes the zero' do
-        are_equal = Version.new('0.1.1.4') == Version.new('1.1.4')
-        expect(are_equal).to eq false
-      end
+  end
+  
+  describe '#>' do
+    it 'can compare with #>' do
+      expect(Version.new('1.3.1') > Version.new('1.2.3.0.1')).to eq true
+      expect(Version.new('1.3.1') > Version.new('1.3.1.1.2')).to eq false
     end
   end
   
   describe '#<' do
-    context 'when equal number of components and second is bigger' do
-      it 'returns true' do
-        is_lower = Version.new('1.4.3') < Version.new('1.5.1')
-        expect(is_lower).to eq true
-      end
+    it 'can compare with #<' do
+      expect(Version.new('2.2.3.0.1') < Version.new('2.3.1')).to eq true
+      expect(Version.new('2.3.1') < Version.new('2.3.1.0')).to eq false
     end
-    
-    context 'when equal number of components and birst is bigger' do
-      it 'returns false' do
-        is_lower = Version.new('2.4.3') < Version.new('1.9.3')
-        expect(is_lower).to eq false
-      end
+  end
+  
+  describe '#>=' do
+    it 'can compare with #>=' do
+      expect(Version.new('2.3.1') >= Version.new('2.3.1.0')).to eq true
+      expect(Version.new('2.3.1') >= Version.new('2.3.1.1.2')).to eq false
     end
-    
-    context 'when equal versions' do
-      it 'returns false' do
-        is_lower = Version.new('2.4.3') < Version.new('2.4.3.0')
-        expect(is_lower).to eq false
-      end
-    end
-    
-    context 'when not equal number of components and birst is bigger' do
-      it 'returns false' do
-        is_lower = Version.new('2.4.3') < Version.new('2.3')
-        expect(is_lower).to eq false
-      end
-    end
-    
-    context 'when not equal number of components and second is bigger' do
-      it 'returns true' do
-        is_lower = Version.new('1.2.3') < Version.new('1.3')
-        expect(is_lower).to eq true
-      end
-    end
-    
-    context 'when not equal number of components and zero as first parameter' do
-      it 'returns true' do
-        is_lower = Version.new('0.2.5') < Version.new('2.3')
-        expect(is_lower).to eq true
-      end
+  end
+  
+  describe '#<=' do
+    it 'can compare with #<=' do
+      expect(Version.new('2.3.1') <= Version.new('2.3.1.0')).to eq true
+      expect(Version.new('2.3.1.1.2') <= Version.new('2.3.1')).to eq false
     end
   end
   
@@ -172,7 +148,7 @@ RSpec.describe 'Version' do
       end
     end
     
-    context 'when fixes number of components and more components' do
+    context 'when fixed number of components and more components' do
       it 'add zeros to the end' do
         a = Version.new('0.0.3')
         expect(a.components(5)).to eq [0, 0, 3, 0, 0]
@@ -180,7 +156,7 @@ RSpec.describe 'Version' do
       end
     end
     
-    context 'when fixes number of components and less components' do
+    context 'when fixed number of components and less components' do
       it 'removes the last components' do
         a = Version.new('1.3.3.5')
         expect(a.components(2)).to eq [1, 3]
@@ -188,11 +164,19 @@ RSpec.describe 'Version' do
       end
     end
     
-    context 'when fixes number of components and zeros in the middle' do
+    context 'when fixed number of components and zeros in the middle' do
       it 'removes the last components correctly without removing the zero' do
         a = Version.new('1.3.0.0.1')
         expect(a.components(3)).to eq [1, 3, 0]
         expect(a.to_s).to eq '1.3.0.0.1'
+      end
+    end
+
+    context 'when modifying the components' do
+      it 'does not change its state' do
+        a = Version.new("2.3.7.0")
+        a.components << 4
+        expect(a.components).to eq [2, 3, 7]
       end
     end
   end
@@ -247,22 +231,29 @@ RSpec.describe 'Version' do
       it 'returns true' do
         a = Version.new('1')
         b = Version.new('2')
-        result = Version::Range.new(a, b).include? Version.new('1.0.5')
-        expect(result).to eq true
+        range = Version::Range.new(a, b)
+        expect(range).to include Version.new('1.0.5')
       end
     end
     
     context 'when between the first and the second and component >= 10' do
       it 'returns true' do
-        result = Version::Range.new('0.4.4', '0.5.7').include? '0.4.11'
-        expect(result).to eq true
+        range = Version::Range.new('0.4.4', '0.5.7')
+        expect(range).to include '0.4.9.9.9.9.9.9.9.9'
+      end
+    end
+
+    context 'when it is smaller than range' do
+      it 'returns false' do
+        range = Version::Range.new('0.4.4', '0.5.7')
+        expect(range).to_not include '0.4.3.9'
       end
     end
     
-    context 'when not between the first and the second' do
+    context 'when it is bigger than range' do
       it 'returns false' do
-        result = Version::Range.new('1.4', '1.7').include? '1.2'
-        expect(result).to eq false
+        range = Version::Range.new('0.4.4', '0.5.7')
+        expect(range).to_not include '0.5.7.1'
       end
     end
   end
