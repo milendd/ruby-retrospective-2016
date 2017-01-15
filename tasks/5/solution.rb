@@ -122,6 +122,7 @@ class DataModel
       self.class.store.update(hash[:id], hash)
     end
     @id = hash[:id]
+    self
   end
   
   def delete
@@ -131,9 +132,9 @@ class DataModel
   end
   
   def ==(other)
-    return true if self.id == other.id
+    return true if self.id == other.id && !self.id.nil?
     return true if self.object_id == other.object_id
-    false
+    self.equal? other
   end
   
   private
@@ -163,13 +164,13 @@ class << DataModel
   
   def attributes(*attr)
     return @attributes_data if attr == []
-    @attributes_data = []
-    attr.each do |x| 
-      attr_accessor(x)
-      define_singleton_method('find_by_' + x.to_s) do |item|
-        @store.find({x.to_s.to_sym => item}.to_h)
+    @attributes_data = [:id]
+    attr.each do |attribute| 
+      attr_accessor(attribute)
+      define_singleton_method "find_by_#{attribute}" do |item|
+        where(attribute => item)
       end
-      @attributes_data << x
+      @attributes_data << attribute
     end
     define_singleton_method('find_by_id') { |item| @store.find(id: item) }
   end
@@ -181,7 +182,7 @@ class << DataModel
   
   def where(search_option)
     result = []
-    missing = (search_option.keys - attributes_data).first
+    missing = (search_option.keys - @attributes_data).first
     unless missing.nil?
       raise DataModel::UnknownAttributeError.new, "Unknown attribute #{missing}"
     end
